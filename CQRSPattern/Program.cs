@@ -1,5 +1,10 @@
 using System.Reflection;
+using CQRSPattern.Features.Products.Commands.Create;
+using CQRSPattern.Features.Products.Commands.Delete;
+using CQRSPattern.Features.Products.Queries.Get;
+using CQRSPattern.Features.Products.Queries.List;
 using CQRSPattern.Persistence;
+using MediatR;
 
 var builder = WebApplication.CreateBuilder(args);
 
@@ -40,6 +45,32 @@ app.MapGet("/weatherforecast", () =>
 })
 .WithName("GetWeatherForecast")
 .WithOpenApi();
+
+app.MapGet("/products/{id:guid}", async (Guid id, ISender mediatr) =>
+{
+    var product = await mediatr.Send(new GetProductQuery(id));
+    if (product == null) return Results.NotFound();
+    return Results.Ok(product);
+});
+
+app.MapGet("/products", async (ISender mediatr) =>
+{
+    var products = await mediatr.Send(new ListProductsQuery());
+    return Results.Ok(products);
+});
+
+app.MapPost("/products", async (CreateProductCommand command, ISender mediatr) =>
+{
+    var productId = await mediatr.Send(command);
+    if (Guid.Empty == productId) return Results.BadRequest();
+    return Results.Created($"/products/{productId}", new { id = productId });
+});
+
+app.MapDelete("/products/{id:guid}", async (Guid id, ISender mediatr) =>
+{
+    await mediatr.Send(new DeleteProductCommand(id));
+    return Results.NoContent();
+});
 
 app.Run();
 
